@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ja">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="height=device-height, width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, minimal-ui">
+
+        <script src="https://cdn.jsdelivr.net/npm/qrcode@latest/build/qrcode.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/jsqr@latest/dist/jsQR.min.js"></script>
+
+        <title>NakaPay</title>
+    </head>
+    <body>
+        <header><img src="nakapay.png" width="100%"></header>
+        現在<span id="coin">100</span>NP<br>
+        <h2>ためる</h2>
+        <video id="video" width="320" height="480" autoplay></video>
+        <textarea id="result" readonly></textarea><br>
+        <h2>おくる</h2>
+        <canvas id="canvas" width="240" height="240"></canvas>
+        送るポイント:<input type="number" id="data"></input>
+    </body>
+
+    <script>
+        let storage = localStorage;
+        if(storage.getItem('userp')){
+            storage.setItem('userp', '1000');
+        }
+        let point = storage.getItem('userp');
+        document.getElementById("coin").innerText=point
+        function qrParse(video){
+            const canvas = new OffscreenCanvas(240, 320);
+            const render = canvas.getContext("2d");
+
+            return new Promise((res)=>{
+                const loop = setInterval(()=>{
+                    render.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                    const img = render.getImageData(0, 0, canvas.width, canvas.height);
+                    const result = jsQR(img.data, img.width, img.height);
+
+                    if(result){
+                        clearInterval(loop);
+                        let gotdata=result.data.split(":")
+                        point+=parseInt(gotdata[2])
+                        document.getElementById("coin").innerText=point
+                        return res(result.data);
+                    }
+                }, 100);
+            });
+        }
+        function qrGenerate(data){
+            const canvas = new OffscreenCanvas(1, 1);
+
+            return new Promise((res, rej) => QRCode.toCanvas(canvas, data, {}, err => !err ? res(canvas) : rej(err)));
+        }
+
+        document.getElementById("data").addEventListener("change", async({target})=>{
+            var random = Math.round( Math.random()*1000000000 );
+            let data="Nakapay"+random+":"+target.value
+            document.getElementById("canvas").getContext("bitmaprenderer").transferFromImageBitmap((await qrGenerate(data)).transferToImageBitmap());
+        });
+
+        (async()=>{
+            const video = document.getElementById("video");
+            video.srcObject = await navigator.mediaDevices.getUserMedia({
+                audio: false,
+                video: {
+                    facingMode: "environment"
+                }
+            });
+
+            document.getElementById("result").value = await qrParse(video);
+        })();
+
+    </script>
+</html>
